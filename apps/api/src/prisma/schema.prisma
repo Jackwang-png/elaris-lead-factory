@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("user")
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model Tenant {
+  id        String    @id @default(cuid())
+  name      String
+  domain    String    @unique
+  status    String    @default("active")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  plans     Plan[]
+  bots      Bot[]
+  customers Customer[]
+  leads     Lead[]
+  orders    Order[]
+  usage     Usage[]
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  price       Float
+  features    Json
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  status    String   @default("active")
+  startDate DateTime
+  endDate   DateTime
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  amount    Float
+  status    String   @default("pending")
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Usage {
+  id          String   @id @default(cuid())
+  date        DateTime
+  messageCount Int     @default(0)
+  tokenCount  Int     @default(0)
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, date])
+}
+
+model Bot {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  status      String      @default("active")
+  config      Json
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  conversations Conversation[]
+  leads       Lead[]
+  customers   Customer[]
+  knowledge   Knowledge[]
+}
+
+model Conversation {
+  id        String      @id @default(cuid())
+  channel   String
+  status    String      @default("active")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  botId     String
+  bot       Bot         @relation(fields: [botId], references: [id])
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  messages  Message[]
+  customer  Customer?   @relation(fields: [customerId], references: [id])
+  customerId String?
+  lead      Lead?       @relation(fields: [leadId], references: [id])
+  leadId    String?
+}
+
+model Message {
+  id           String       @id @default(cuid())
+  content      String
+  isFromBot    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  conversationId String
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  responseTime Int?
+  metadata     Json?
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  status        String         @default("active")
+  lastContactAt DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  botId         String?
+  bot           Bot?           @relation(fields: [botId], references: [id])
+  conversations Conversation[]
+  leads         Lead[]
+  tags          Tag[]          @relation("CustomerTags")
+}
+
+model Lead {
+  id            String       @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  source        String       @default("manual")
+  salesStatus   String       @default("new")
+  intentScore   Int?         @default(0)
+  intentLevel   String?
+  remark        String?
+  lastContactAt DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  botId         String
+  bot           Bot          @relation(fields: [botId], references: [id])
+  conversation  Conversation? @relation(fields: [conversationId], references: [id])
+  conversationId String?
+  customer      Customer?    @relation(fields: [customerId], references: [id])
+  customerId    String?
+}
+
+model Knowledge {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  embedding String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id])
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  customers Customer[] @relation("CustomerTags")
+}

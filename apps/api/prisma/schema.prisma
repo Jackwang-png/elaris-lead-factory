@@ -1,0 +1,1049 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+  url = env("DATABASE_URL")
+}
+
+model Tenant {
+  id String @id @default(cuid())
+
+  name String
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  bots Bot[]
+
+  customers Customer[]
+
+  conversations Conversation[]
+
+  leads Lead[]
+
+  knowledge Knowledge[]
+
+  channelMessages ChannelMessage[]
+
+  channelStats ChannelStat[]
+
+  salesMemories SalesMemory[]
+
+  customerIdentities CustomerIdentity[]
+
+  messages Message[]
+
+  knowledgeChannels KnowledgeChannel[]
+
+  usages Usage[]
+
+  products Product[]
+
+  knowledgeDocuments KnowledgeDocument[]
+
+  subscriptions Subscription[]
+
+  PaymentOrder PaymentOrder[]
+
+  auditLogs AuditLog[]
+
+  companies Company[]
+
+  opportunities Opportunity[]
+
+  intelligenceSignals IntelligenceSignal[]
+
+  tenantApiKeys TenantApiKey[]
+
+  // P0-5B.2: Lead Intelligence Engine
+  leadAnalysisRuns  LeadAnalysisRun[]
+  leadIntelligences LeadIntelligence[]
+  leadSignals       LeadSignal[]
+  messageDrafts     MessageDraft[]
+
+  // GROWTH-STAFF-02: 裂变使用记录
+  referralUses ReferralUse[]
+}
+
+model User {
+  id String @id @default(cuid())
+
+  email String @unique
+
+  password String
+
+  name String?
+
+  username String? @unique
+
+  firstName String?
+
+  lastName String?
+
+  avatarUrl String?
+
+  isActive Boolean @default(true)
+
+  // GROWTH-STAFF-06: 员工最后登录时间（用于员工列表展示）
+  lastLogin DateTime?
+
+  role String @default("user")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  // GROWTH-STAFF-02: 裂变关系
+  referralUsesInvited  ReferralUse[]  @relation("ReferralUseInviter")
+  referralUsesUsed     ReferralUse[]  @relation("ReferralUseUsedBy")
+  claimedConversations Conversation[] @relation("ConversationClaimedBy")
+
+  auditLogs AuditLog[]
+}
+
+model Bot {
+  id String @id @default(cuid())
+
+  name String
+
+  description String?
+
+  model String @default("deepseek-chat")
+
+  systemPrompt String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  conversations Conversation[]
+
+  knowledge Knowledge[]
+
+  customers Customer[]
+
+  leads Lead[]
+
+  salesRules SalesRule[]
+
+  knowledgeDocuments KnowledgeDocument[]
+}
+
+model Customer {
+  id String @id @default(cuid())
+
+  name String
+
+  email String?
+
+  phone         String?
+  status        String    @default("active")
+  lastContactAt DateTime?
+  tags          String[]  @default([])
+
+  stage String?
+
+  nextFollowUpAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  botId String?
+
+  bot Bot? @relation(fields: [botId], references: [id])
+
+  identities CustomerIdentity[]
+
+  conversations Conversation[]
+
+  salesMemories SalesMemory[]
+
+  leads Lead[]
+
+  channelMessages ChannelMessage[]
+
+  companyId String?
+
+  company Company? @relation(fields: [companyId], references: [id])
+
+  source String @default("manual")
+
+  role String?
+
+  icpScore Float?
+}
+
+model CustomerIdentity {
+  id String @id @default(cuid())
+
+  platform String
+
+  platformId String
+
+  customerId String
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([platform, platformId, tenantId])
+}
+
+model Conversation {
+  id String @id @default(cuid())
+
+  channel String @default("web")
+
+  channelId String?
+
+  visitor String @default("api-user")
+
+  // 转人工客服（AI 无法回答时置 true，人工回复/处理后置 false）
+  needsHuman Boolean @default(false)
+
+  handoffReason String? // 触发原因：unknown_intent / low_confidence / fallback_response / manual
+
+  handoffAt DateTime? // 转人工时间
+
+  resolvedAt DateTime? // 人工处理完成时间
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  customerId String?
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  botId String?
+
+  bot Bot? @relation(fields: [botId], references: [id])
+
+  messages Message[]
+
+  leads Lead[]
+
+  channelMessages ChannelMessage[]
+
+  opportunities Opportunity[]
+
+  // GROWTH-STAFF-02: 人工客服认领（claim）支持
+  claimedByUserId String?
+  claimedAt       DateTime?
+  claimedByUser   User?     @relation("ConversationClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+}
+
+model Message {
+  id String @id @default(cuid())
+
+  content String
+
+  sender String @default("customer") // "customer" or "bot"
+
+  direction String @default("inbound") // "inbound" or "outbound"
+
+  role String @default("user")
+
+  createdAt DateTime @default(now())
+
+  conversationId String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  metadata Json?
+
+  tenantId String?
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+}
+
+model ChannelMessage {
+  id String @id @default(cuid())
+
+  channel String
+
+  externalUserId String
+
+  content String
+
+  direction String // "inbound" or "outbound"
+
+  createdAt DateTime @default(now())
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  customerId String?
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  conversationId String?
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  metadata Json?
+}
+
+model ChannelStat {
+  id String @id @default(cuid())
+
+  date DateTime
+
+  channel String
+
+  customerCount Int @default(0)
+
+  messageCount Int @default(0)
+
+  conversionCount Int @default(0)
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, date, channel])
+}
+
+model Knowledge {
+  id String @id @default(cuid())
+
+  title String
+
+  content String
+
+  type String
+
+  category String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  botId String?
+
+  bot Bot? @relation(fields: [botId], references: [id])
+
+  channels KnowledgeChannel[]
+
+  embeddings KnowledgeEmbedding[]
+}
+
+model KnowledgeChannel {
+  id String @id @default(cuid())
+
+  knowledgeId String
+
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id])
+
+  channel String
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([knowledgeId, channel])
+}
+
+model KnowledgeEmbedding {
+  id String @id @default(cuid())
+
+  knowledgeId String @unique
+
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id])
+
+  embedding String
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeDocument {
+  id String @id @default(cuid())
+
+  title String
+
+  content String?
+
+  fileType String?
+
+  type String?
+
+  category String?
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  botId String?
+
+  bot Bot? @relation(fields: [botId], references: [id])
+
+  chunks KnowledgeChunk[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeChunk {
+  id String @id @default(cuid())
+
+  documentId String
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id])
+
+  content String
+
+  embedding String?
+
+  createdAt DateTime @default(now())
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  name String @default("")
+
+  email String?
+
+  phone String?
+
+  status String @default("new")
+
+  salesStatus String @default("new")
+
+  company String?
+
+  industry String?
+
+  wechat String?
+
+  platform String?
+
+  intentScore Int?
+
+  intentLevel String?
+
+  source String @default("ai")
+
+  interests String[] @default([])
+
+  tags String[] @default([])
+
+  preferences Json?
+
+  purchaseHistory Json?
+
+  buyingStage String?
+
+  interestedProduct String?
+
+  budget String?
+
+  urgency String?
+
+  highPurchaseIntent Boolean? @default(false)
+
+  content String?
+
+  remark String?
+
+  followCount Int @default(0)
+
+  lastContactAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  customerId String?
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  botId String?
+
+  bot Bot? @relation(fields: [botId], references: [id])
+
+  conversationId String?
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  scoreHistory LeadScoreHistory[]
+
+  companyId String?
+
+  companyRef Company? @relation(fields: [companyId], references: [id])
+
+  signalId String?
+
+  signal IntelligenceSignal? @relation(fields: [signalId], references: [id])
+
+  icpScore Float?
+
+  recommendedAction String?
+
+  qualifiedBy String?
+
+  qualifiedAt DateTime?
+
+  legacySource String?
+
+  legacyId String?
+
+  opportunities Opportunity[]
+
+  // P0-5B.2: Lead Intelligence Engine
+  leadAnalysisRuns  LeadAnalysisRun[]
+  leadIntelligences LeadIntelligence[]
+  leadSignals       LeadSignal[]
+  messageDrafts     MessageDraft[]
+
+  @@unique([customerId, tenantId])
+  @@index([tenantId, companyId])
+  @@index([tenantId, signalId])
+}
+
+model LeadScoreHistory {
+  id String @id @default(cuid())
+
+  score Int
+
+  reason String
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  leadId String
+
+  lead Lead @relation(fields: [leadId], references: [id])
+}
+
+model SalesMemory {
+  id String @id @default(cuid())
+
+  type String
+
+  content Json
+
+  key String?
+
+  memory Json?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  customerId String
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  botId String?
+}
+
+model SalesRule {
+  id String @id @default(cuid())
+
+  botId String
+
+  bot Bot @relation(fields: [botId], references: [id])
+
+  name String
+
+  content String
+
+  type String @default("script")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id String @id @default(cuid())
+
+  name String
+
+  description String?
+
+  price Float?
+
+  status String @default("active")
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model Usage {
+  id String @id @default(cuid())
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  date DateTime
+
+  messageCount Int @default(0)
+
+  tokenUsage Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, date])
+}
+
+enum SubscriptionStatus {
+  // T2.9: PENDING = paid-plan subscription awaiting payment confirmation.
+  PENDING
+
+  ACTIVE
+
+  EXPIRED
+
+  CANCELLED
+}
+
+model Plan {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  dailyLimit Int @default(100)
+
+  price Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+  orders        PaymentOrder[]
+}
+
+model Subscription {
+  id String @id @default(cuid())
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  planId String
+
+  plan Plan @relation(fields: [planId], references: [id])
+
+  status SubscriptionStatus @default(ACTIVE)
+
+  startAt DateTime @default(now())
+
+  expireAt DateTime?
+
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  orders    PaymentOrder[]
+}
+
+enum PaymentOrderStatus {
+  PENDING
+
+  // T2.9: entered the payment channel (payment flow started).
+  PAYING
+
+  PAID
+
+  CANCELLED
+
+  EXPIRED
+
+  // T2.9: outcome unknown (e.g. timeout — channel may or may not have
+  // succeeded). Never auto-retry / auto-failover from this state.
+  UNKNOWN
+
+  // T2.10: user claims they paid via the self-hosted QR channel; awaiting
+  // manual admin confirmation before the subscription activates.
+  AWAITING_CONFIRM
+}
+
+enum PaymentProvider {
+  WECHAT
+  ALIPAY
+  STRIPE
+  MANUAL
+
+  // T2.9: aggregate payment channel (e.g. MaPay platform) — the primary
+  // production provider. MANUAL stays reserved for legacy/manual payments.
+  AGGREGATE
+
+  // T2.10: self-hosted QR channel (merchant uploads their own Alipay/WeChat
+  // personal collection QR; payment confirmed manually by the admin).
+  SELFHOSTED
+}
+
+model PaymentOrder {
+  id             String             @id @default(cuid())
+  orderId        String             @unique
+  idempotencyKey String             @unique
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  planId         String
+  plan           Plan               @relation(fields: [planId], references: [id])
+  subscriptionId String?
+  subscription   Subscription?      @relation(fields: [subscriptionId], references: [id])
+  provider       PaymentProvider    @default(MANUAL)
+  amount         Float
+  status         PaymentOrderStatus @default(PENDING)
+  paidAt         DateTime?
+  rawPayload     Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+// L2: 注册邀请码（防批量注册薅 FREE 额度）
+// GROWTH-STAFF-02: 扩展支持 USER_REFERRAL（裂变）；type 区分用途。
+model InviteCode {
+  id        String    @id @default(cuid())
+  type      String    @default("ADMIN_INVITE") // ADMIN_INVITE | USER_REFERRAL
+  code      String    @unique // 邀请码（8 位大写字母+数字，排除 0O1Il）
+  maxUses   Int       @default(1) // 1=单次码，N=批量码；USER_REFERRAL 可设较大值表示最大邀请人数
+  usedCount Int       @default(0)
+  expiresAt DateTime? // null=永不过期
+  remark    String? // 备注（发给谁）
+  createdBy String? // 创建人（admin user id）
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  referralUses ReferralUse[]
+
+  @@index([code])
+  @@index([type])
+}
+
+// GROWTH-STAFF-02: 裂变使用与奖励记录（每次真实 referral 使用 + 奖励落点）
+model ReferralUse {
+  id              String     @id @default(cuid())
+  referralCodeId  String
+  referralCode    InviteCode @relation(fields: [referralCodeId], references: [id], onDelete: Cascade)
+  inviterUserId   String
+  inviter         User       @relation("ReferralUseInviter", fields: [inviterUserId], references: [id], onDelete: Cascade)
+  usedByUserId    String
+  usedBy          User       @relation("ReferralUseUsedBy", fields: [usedByUserId], references: [id], onDelete: Cascade)
+  tenantId        String
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rewardDays      Int
+  rewardStatus    String     @default("PENDING") // PENDING | APPLIED | FAILED
+  rewardAppliedAt DateTime?
+  createdAt       DateTime   @default(now())
+
+  @@unique([referralCodeId, usedByUserId])
+  @@index([referralCodeId])
+  @@index([inviterUserId])
+  @@index([usedByUserId])
+  @@index([tenantId])
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  action        String
+  resource      String
+  resourceId    String?
+  detail        Json?
+  ip            String?
+  userAgent     String?
+  success       Boolean  @default(true)
+  failureReason String?
+  actorType     String   @default("USER")
+  source        String?
+  traceId       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action])
+  @@index([tenantId, resource])
+}
+
+// ============================================================================
+// P0-3 Workforce: Scout -> IntelligenceSignal -> Company/Lead -> Hunter ->
+// Qualified Lead -> Opportunity/Support 全链路（生产库 2026-08-09 已建表）
+// ============================================================================
+
+model Company {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String
+  domain         String?
+  industry       String?
+  size           String?
+  website        String?
+  address        String?
+  region         String?
+  description    String?
+  source         String   @default("manual")
+  icpScore       Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+
+  customers     Customer[]
+  leads         Lead[]
+  signals       IntelligenceSignal[]
+  opportunities Opportunity[]
+
+  @@index([tenantId, domain])
+  @@index([tenantId, icpScore])
+  @@index([tenantId, industry])
+  @@index([tenantId, normalizedName])
+}
+
+model Opportunity {
+  id                String        @id @default(cuid())
+  title             String
+  description       String?
+  status            String        @default("new")
+  stage             String?
+  outcome           String?
+  leadScore         Float         @default(0)
+  leadGrade         String        @default("D")
+  qualificationData Json?
+  scoringModel      String?
+  scoreExplanation  Json?
+  amount            Float?
+  currency          String        @default("CNY")
+  priority          Int           @default(0)
+  closedAt          DateTime?
+  nextFollowUpAt    DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  tenantId          String
+  tenant            Tenant        @relation(fields: [tenantId], references: [id])
+  companyId         String?
+  company           Company?      @relation(fields: [companyId], references: [id])
+  leadId            String?
+  lead              Lead?         @relation(fields: [leadId], references: [id])
+  conversationId    String?
+  conversation      Conversation? @relation(fields: [conversationId], references: [id])
+  legacySource      String?
+  legacyId          String?
+
+  @@index([tenantId, companyId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+}
+
+model IntelligenceSignal {
+  id                String    @id @default(cuid())
+  sourceType        String    @default("daily_batch")
+  sourceSystem      String    @default("scout")
+  signalType        String
+  signalStrength    String    @default("medium")
+  relevanceScore    Int?
+  credibility       String?
+  evidence          String?
+  sourceUrl         String?
+  description       String?
+  rawData           Json?
+  evidenceHash      String
+  recommendedAction String?
+  status            String    @default("detected")
+  icpScore          Float?
+  processedAt       DateTime?
+  processedBy       String?
+  occurredAt        DateTime  @default(now())
+  detectedAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  companyId         String?
+  company           Company?  @relation(fields: [companyId], references: [id])
+  legacySource      String?
+  legacyId          String?
+
+  leads Lead[]
+
+  @@unique([tenantId, sourceSystem, evidenceHash])
+  @@index([tenantId, status])
+  @@index([tenantId, sourceType])
+  @@index([tenantId, signalType, occurredAt])
+  @@index([companyId])
+}
+
+model TenantApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyPrefix  String
+  keyHash    String    @unique
+  scopes     String[]  @default([])
+  status     String    @default("active")
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+}
+
+// P0-5B.2: Lead Intelligence Engine
+
+model LeadAnalysisRun {
+  id             String    @id @default(cuid())
+  tenantId       String
+  leadId         String
+  triggerType    String
+  contextVersion String
+  promptVersion  String
+  idempotencyKey String
+  inputHash      String
+  provider       String
+  model          String
+  status         String    @default("PENDING")
+  outputRef      String?
+  error          String?
+  inputTokens    Int?
+  outputTokens   Int?
+  totalTokens    Int?
+  retryCount     Int       @default(0)
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead   Lead   @relation(fields: [leadId], references: [id])
+
+  // P0-5B.2: Reverse relations
+  intelligence LeadIntelligence?
+  signals      LeadSignal[]
+  drafts       MessageDraft[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, leadId, createdAt])
+  @@index([tenantId, status, createdAt])
+}
+
+model LeadIntelligence {
+  id                String   @id @default(cuid())
+  tenantId          String
+  leadId            String
+  runId             String   @unique
+  leadScore         Int?
+  fitScore          Int?
+  intentScore       Int?
+  priority          String?
+  observed          Json?
+  inferred          Json?
+  unknowns          Json?
+  signals           Json?
+  painPoints        Json?
+  recommendedAction String?
+  suggestedStrategy Json?
+  reasoningSummary  String?
+  modelMetadata     Json?
+  createdAt         DateTime @default(now())
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  lead   Lead            @relation(fields: [leadId], references: [id])
+  run    LeadAnalysisRun @relation(fields: [runId], references: [id])
+
+  @@index([tenantId, leadId, createdAt])
+}
+
+model LeadSignal {
+  id              String   @id @default(cuid())
+  tenantId        String
+  leadId          String
+  runId           String?
+  signalType      String
+  factOrInference String
+  confidence      String?
+  evidenceText    String?
+  sourceRef       String?
+  observedAt      DateTime @default(now())
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  lead   Lead             @relation(fields: [leadId], references: [id])
+  run    LeadAnalysisRun? @relation(fields: [runId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, signalType])
+}
+
+model MessageDraft {
+  id            String    @id @default(cuid())
+  tenantId      String
+  leadId        String
+  analysisRunId String?
+  status        String    @default("GENERATED")
+  draftType     String
+  riskLevel     String
+  content       Json
+  reasoning     String?
+  approvalId    String?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  lead   Lead             @relation(fields: [leadId], references: [id])
+  run    LeadAnalysisRun? @relation(fields: [analysisRunId], references: [id])
+
+  @@index([tenantId, leadId, status])
+  @@index([tenantId, approvalId])
+}

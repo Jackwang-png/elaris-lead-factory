@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "万澜 WANLAN AI",
+    "slug": "wanlan-mobile",
+    "scheme": "wanlan",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFFFF",
+    "icon": "./assets/icon.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "top.wanwan.wanlan.mobile",
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIUserInterfaceStyle": "Light",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "top.wanwan.wanlan.mobile",
+      "versionCode": 4,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiBaseUrl": "https://api.wan-wan.top",
+      "router": {},
+      "eas": {
+        "projectId": "f239d8bc-82fd-49d0-9092-2715b786bc37"
+      }
+    },
+    "owner": "wanglan"
+  }
+}

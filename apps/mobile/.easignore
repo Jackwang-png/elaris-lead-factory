@@ -1,0 +1,46 @@
+# .easignore — EAS 上传范围隔离（@wanglan/wanlan-mobile / apps/mobile）
+# 以 apps/mobile 为 EAS app 根目录；仅排除依赖/构建产物/缓存/密钥/临时文件。
+# 明确不排除：package.json / pnpm-lock.yaml / app.json / eas.json / src / app / assets
+
+# 依赖
+node_modules/
+
+# 构建/导出产物
+.expo/
+dist/
+web-build/
+coverage/
+
+# Expo 生成
+expo-env.d.ts
+
+# 日志与临时
+*.log
+.DS_Store
+*.tmp
+tmp/
+.cache/
+*.swp
+*.tsbuildinfo
+
+# 编辑器 / OS
+.idea/
+.vscode/
+*.pem
+
+# 测试缓存
+.jest/
+__snapshots__/
+
+# 环境与密钥（绝不入库）
+.env
+.env.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# 本地 inspect 输出（避免递归打包）
+.eas-inspect/

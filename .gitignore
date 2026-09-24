@@ -1,0 +1,72 @@
+# D:\SmartCS\.gitignore — WANLAN monorepo 通用规则
+# PHASE C1：由「Mobile-only EAS 作用域」调整为「完整 monorepo baseline 作用域」。
+# 备注：EAS 构建已改用 EAS_NO_VCS=1 + apps/mobile/.easignore，与本文件解耦；
+#       放宽本文件不会影响 EAS 上传范围（M7/M8 已验证）。
+
+# ---------- 依赖 ----------
+node_modules/
+
+# ---------- 构建 / 导出 / 缓存产物 ----------
+.expo/
+dist/
+build/
+coverage/
+web-build/
+.next/
+.turbo/
+.vercel/
+.cache/
+*.tsbuildinfo
+
+# ---------- EAS / 本地 inspect 临时产物 ----------
+.eas-inspect*/
+.mobiledone*
+
+# ---------- 编辑器 / OS / 日志 / 临时 ----------
+.idea/
+.vscode/
+*.log
+*.tmp
+*.swp
+*.tgz
+.DS_Store
+
+# ---------- 敏感文件（绝对禁止入库）----------
+.env
+.env.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+credentials.json
+
+# ---------- 根层临时 / 运维 / 阶段性产物（不进 baseline）----------
+# 以 / 锚定仓库根，仅影响根层，不影响 apps/ 与 docs/ 内的同名文件
+/*.md
+/*.sh
+/*.sql
+/*.bat
+/*_impl*/
+/*_agent*/
+/*_m0*/
+/*_p3*/
+/_tmp*/
+/_aud*/
+/_audit_tmp/
+multi-route/
+woo_src/
+
+# ---------- 畸形 / 误产生的日志文件 ----------
+expo_config_err.log*
+
+# ---------- C1 审计新增发现：临时 / 备份制品（仅忽略，不删除原文件）----------
+.tmp*
+apps/api/prisma/migrations_archive/
+apps/api/prisma/migrations_backup_*/
+
+# ---------- C2 裁定：一次性支付 live/probe 探测脚本（含真实商户/生产直连风险，排除，不删原文件）----------
+apps/api/mapay-live-test.ts
+apps/api/mapay-probe.ts

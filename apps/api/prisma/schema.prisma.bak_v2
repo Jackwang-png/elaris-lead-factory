@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id              String            @id @default(cuid())
+  name            String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  users           User[]
+  bots            Bot[]
+  customers       Customer[]
+  conversations   Conversation[]
+  leads           Lead[]
+  knowledge       Knowledge[]
+  channelMessages ChannelMessage[]
+  channelStats    ChannelStat[]
+  salesMemories   SalesMemory[]
+  customerIdentities CustomerIdentity[]
+  messages        Message[]
+  knowledgeChannels KnowledgeChannel[]
+  usages          Usage[]
+  products        Product[]
+  knowledgeDocuments KnowledgeDocument[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  username  String?  @unique
+  firstName String?
+  lastName  String?
+  avatarUrl String?
+  isActive  Boolean  @default(true)
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model Bot {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  model       String    @default("deepseek-chat")
+  systemPrompt String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  conversations Conversation[]
+  knowledge   Knowledge[]
+  customers   Customer[]
+  leads       Lead[]
+  salesRules  SalesRule[]
+  knowledgeDocuments KnowledgeDocument[]
+}
+
+model Customer {
+  id          String            @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  stage       String?
+  nextFollowUpAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  botId       String?
+  bot         Bot?              @relation(fields: [botId], references: [id])
+  identities  CustomerIdentity[]
+  conversations Conversation[]
+  salesMemories SalesMemory[]
+  leads       Lead[]
+  channelMessages ChannelMessage[]
+}
+
+model CustomerIdentity {
+  id          String   @id @default(cuid())
+  platform    String
+  platformId  String
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([platform, platformId, tenantId])
+}
+
+model Conversation {
+  id          String      @id @default(cuid())
+  channel     String      @default("web")
+  channelId   String?
+  visitor     String      @default("api-user")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  customerId  String?
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  botId       String?
+  bot         Bot?        @relation(fields: [botId], references: [id])
+  messages    Message[]
+  leads       Lead[]
+  channelMessages ChannelMessage[]
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  content       String
+  sender        String      @default("customer") // "customer" or "bot"
+  direction     String      @default("inbound") // "inbound" or "outbound"
+  role          String      @default("user")
+  createdAt     DateTime    @default(now())
+  conversationId String
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
+  metadata      Json?
+  tenantId      String?
+  tenant        Tenant?     @relation(fields: [tenantId], references: [id])
+}
+
+model ChannelMessage {
+  id            String      @id @default(cuid())
+  channel       String
+  externalUserId String
+  content       String
+  direction     String      // "inbound" or "outbound"
+  createdAt     DateTime    @default(now())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  conversationId String?
+  conversation  Conversation? @relation(fields: [conversationId], references: [id])
+  metadata      Json?
+}
+
+model ChannelStat {
+  id            String   @id @default(cuid())
+  date          DateTime
+  channel       String
+  customerCount Int      @default(0)
+  messageCount  Int      @default(0)
+  conversionCount Int    @default(0)
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, date, channel])
+}
+
+model Knowledge {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  type      String
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  botId     String?
+  bot       Bot?     @relation(fields: [botId], references: [id])
+  channels  KnowledgeChannel[]
+  embeddings KnowledgeEmbedding[]
+}
+
+model KnowledgeChannel {
+  id          String   @id @default(cuid())
+  knowledgeId String
+  knowledge   Knowledge @relation(fields: [knowledgeId], references: [id])
+  channel     String
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([knowledgeId, channel])
+}
+
+model KnowledgeEmbedding {
+  id          String   @id @default(cuid())
+  knowledgeId String   @unique
+  knowledge   Knowledge @relation(fields: [knowledgeId], references: [id])
+  embedding   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model KnowledgeDocument {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  fileType  String?
+  type      String?
+  category  String?
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  botId     String?
+  bot       Bot?     @relation(fields: [botId], references: [id])
+  chunks    KnowledgeChunk[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeChunk {
+  id         String   @id @default(cuid())
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id])
+  content    String
+  embedding  String?
+  createdAt  DateTime @default(now())
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  name        String   @default("")
+  email       String?
+  phone       String?
+  status      String   @default("new")
+  salesStatus String   @default("new")
+  company     String?
+  industry    String?
+  wechat      String?
+  platform    String?
+  intentScore Int?
+  intentLevel String?
+  source      String   @default("ai")
+  interests   String[] @default([])
+  tags        String[] @default([])
+  preferences Json?
+  purchaseHistory Json?
+  buyingStage String?
+  interestedProduct String?
+  budget      String?
+  urgency     String?
+  highPurchaseIntent Boolean? @default(false)
+  content     String?
+  remark      String?
+  followCount Int      @default(0)
+  lastContactAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  botId       String?
+  bot         Bot?     @relation(fields: [botId], references: [id])
+  conversationId String?
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  scoreHistory LeadScoreHistory[]
+
+  @@unique([customerId, tenantId])
+}
+
+model LeadScoreHistory {
+  id        String   @id @default(cuid())
+  score     Int
+  reason    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+}
+
+model SalesMemory {
+  id         String   @id @default(cuid())
+  type       String
+  content    Json
+  key        String?
+  memory     Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  botId      String?
+}
+
+model SalesRule {
+  id        String   @id @default(cuid())
+  botId     String
+  bot       Bot      @relation(fields: [botId], references: [id])
+  name      String
+  content   String
+  type      String   @default("script")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float?
+  status      String   @default("active")
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Usage {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  date         DateTime
+  messageCount Int      @default(0)
+  tokenUsage   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, date])
+}

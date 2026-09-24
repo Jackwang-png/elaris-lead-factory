@@ -1,0 +1,43 @@
+export const LEAD_INTELLIGENCE_CONSTANTS = {
+  TRIGGER_TYPES: {
+    NEW_LEAD: 'NEW_LEAD',
+    NEW_MESSAGE: 'NEW_MESSAGE',
+    CRM_UPDATE: 'CRM_UPDATE',
+    MANUAL: 'MANUAL',
+    SCHEDULED_REFRESH: 'SCHEDULED_REFRESH',
+  },
+  STATUS: {
+    PENDING: 'PENDING',
+    RUNNING: 'RUNNING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+  },
+  DRAFT_STATUS: {
+    GENERATED: 'GENERATED',
+    REVIEW_REQUIRED: 'REVIEW_REQUIRED',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+    EXPIRED: 'EXPIRED',
+  },
+  DRAFT_TYPES: {
+    FIRST_CONTACT: 'first_contact',
+    FOLLOW_UP: 'follow_up',
+    CLARIFICATION: 'clarification',
+    RE_ENGAGEMENT: 're_engagement',
+  },
+  RISK_LEVELS: {
+    LOW: 'low',
+    MEDIUM: 'medium',
+    HIGH: 'high',
+  },
+  CONFIDENCE: {
+    LOW: 'LOW',
+    MEDIUM: 'MEDIUM',
+    HIGH: 'HIGH',
+  },
+  FACT_OR_INFERENCE: {
+    OBSERVED: 'OBSERVED',
+    INFERRED: 'INFERRED',
+    UNKNOWN: 'UNKNOWN',
+  },
+};

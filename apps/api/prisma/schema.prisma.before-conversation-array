@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id String @id @default(cuid())
+
+  name String
+
+  users         User[]
+  bots          Bot[]
+  leads         Lead[]
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id String @id @default(cuid())
+
+  email    String  @unique
+  password String
+  name     String?
+  role     String  @default("admin")
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Bot {
+  id String @id @default(cuid())
+
+  name         String
+  description  String?
+  model        String  @default("deepseek-chat")
+  systemPrompt String?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  knowledges    Knowledge[]
+  conversations Conversation[]
+  leads         Lead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Knowledge {
+  id String @id @default(cuid())
+
+  title   String
+  content String
+
+  botId String
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  chunks KnowledgeChunk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeChunk {
+  id String @id @default(cuid())
+
+  content String
+
+  chunkIndex Int
+
+  knowledgeId String
+
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Conversation {
+  id String @id @default(cuid())
+
+  botId String
+
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  visitor String?
+
+  status String @default("open")
+
+  messages Message[]
+
+  leads Lead[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id String @id @default(cuid())
+
+  conversationId String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role String
+
+  content String
+
+  createdAt DateTime @default(now())
+}
+
+model ApiKey {
+  id String @id @default(cuid())
+
+  name String
+
+  key String @unique
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+}
+
+model Plan {
+  id String @id @default(cuid())
+
+  name String
+
+  price Int
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id String @id @default(cuid())
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  planId String
+
+  plan Plan @relation(fields: [planId], references: [id])
+
+  status String @default("active")
+
+  startAt DateTime @default(now())
+
+  endAt DateTime?
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  tenantId String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  botId String?
+
+  bot Bot? @relation(fields: [botId], references: [id], onDelete: SetNull)
+
+  conversationId String?
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  name String?
+
+  phone String?
+
+  wechat String?
+
+  company String?
+
+  industry String?
+
+  platform String?
+
+  email String?
+
+  source String @default("chat")
+
+  intentScore Int @default(0)
+
+  intentLevel String @default("cold")
+
+  content String?
+
+  status String @default("new")
+
+  remark String?
+
+  lastContactAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}

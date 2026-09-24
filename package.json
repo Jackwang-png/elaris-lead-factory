@@ -1,0 +1,16 @@
+{
+  "name": "smartcs",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/dashboard",
+    "apps/widget"
+  ],
+  "scripts": {
+    "prisma:generate": "pnpm --filter smartcs-api prisma generate",
+    "build": "pnpm --filter smartcs-api build",
+    "lint": "pnpm --filter smartcs-api lint",
+    "test": "pnpm --filter smartcs-api test"
+  }
+}
