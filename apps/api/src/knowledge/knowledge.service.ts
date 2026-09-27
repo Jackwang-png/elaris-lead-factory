@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { UpdateKnowledgeDto } from './dto/update-knowledge.dto';
@@ -38,7 +38,7 @@ export class KnowledgeService {
       });
     }
 
-    return this.findOne(knowledge.id);
+    return this.findOne(knowledge.id, createKnowledgeDto.tenantId);
   }
 
   async findAll(tenantId: string, page: number = 1, limit: number = 10, type?: string, channel?: string) {
@@ -86,9 +86,9 @@ export class KnowledgeService {
     };
   }
 
-  async findOne(id: string) {
-    const knowledge = await this.prisma.knowledge.findUnique({
-      where: { id },
+  async findOne(id: string, tenantId: string) {
+    const knowledge = await this.prisma.knowledge.findFirst({
+      where: { id, tenantId },
       include: {
         channels: {
           select: {
@@ -105,14 +105,14 @@ export class KnowledgeService {
 
     return {
       ...knowledge,
-      channels: knowledge.channels.map(c => c.channel)
+      channels: (knowledge.channels || []).map(c => c.channel)
     };
   }
 
   async update(id: string, updateKnowledgeDto: UpdateKnowledgeDto & { tenantId: string; channels?: string[] }) {
-    // Update the knowledge item
+    // 强制按 id + tenantId 过滤，杜绝跨租户篡改
     const knowledge = await this.prisma.knowledge.update({
-      where: { id },
+      where: { id, tenantId: updateKnowledgeDto.tenantId },
       data: {
         title: updateKnowledgeDto.title,
         content: updateKnowledgeDto.content,
@@ -144,10 +144,16 @@ export class KnowledgeService {
       }
     }
 
-    return this.findOne(id);
+    return this.findOne(id, updateKnowledgeDto.tenantId);
   }
 
-  async remove(id: string) {
+  async remove(id: string, tenantId: string) {
+    // 先校验归属，跨租户一律 404（不泄露存在性）
+    const exists = await this.prisma.knowledge.findFirst({ where: { id, tenantId } });
+    if (!exists) {
+      throw new NotFoundException('Knowledge not found');
+    }
+
     // Delete channel associations first
     await this.prisma.knowledgeChannel.deleteMany({
       where: { knowledgeId: id }
@@ -158,9 +164,9 @@ export class KnowledgeService {
       where: { knowledgeId: id }
     });
 
-    // Then delete the knowledge item
+    // Then delete the knowledge item（显式带上 tenantId，纵深防御）
     return this.prisma.knowledge.delete({
-      where: { id }
+      where: { id, tenantId }
     });
   }
 

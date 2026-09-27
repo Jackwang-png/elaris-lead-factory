@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, FileText, Search, Filter, BookOpen, HelpCircle, Package, Link, File, Inbox } from 'lucide-react';
+import { Plus, Trash2, FileText, Search, Filter, BookOpen, HelpCircle, Package, Link, File, Inbox, LayoutTemplate } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -45,6 +45,9 @@ export default function KnowledgePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [usingTemplateId, setUsingTemplateId] = useState<string | null>(null);
 
   const knowledgeTypes = [
     { value: 'all', label: '所有类型', icon: <FileText style={{ width: 16, height: 16 }} /> },
@@ -246,6 +249,51 @@ export default function KnowledgePage() {
     setEditingId(null);
   };
 
+  const fetchTemplates = async () => {
+    try {
+      setTemplatesLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API}/knowledge-templates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(Array.isArray(data) ? data : []);
+      } else {
+        toast({ title: 'Error', description: 'Failed to fetch templates', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      toast({ title: 'Error', description: 'Failed to fetch templates', variant: 'destructive' });
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const useTemplate = async (id: string) => {
+    try {
+      setUsingTemplateId(id);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API}/knowledge-templates/${id}/use`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast({ title: '成功', description: '模板已复制到你的知识库，可自由修改' });
+        setActiveTab('knowledge');
+        fetchKnowledge();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Error', description: err.message || '复制失败', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Use template error:', error);
+      toast({ title: 'Error', description: '复制失败', variant: 'destructive' });
+    } finally {
+      setUsingTemplateId(null);
+    }
+  };
+
   const toggleChannel = (channel: string) => {
     setNewKnowledge(prev => {
       const channels = prev.channels.includes(channel)
@@ -369,7 +417,7 @@ export default function KnowledgePage() {
                     value={newKnowledge.type}
                     onValueChange={(value) => setNewKnowledge({...newKnowledge, type: value})}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger style={{ width: '100%' }}>
                       <SelectValue placeholder="选择类型" />
                     </SelectTrigger>
                     <SelectContent style={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: 12 }}>
@@ -458,6 +506,23 @@ export default function KnowledgePage() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          className={activeTab === 'knowledge' ? 'btn-primary' : 'btn-ghost'}
+          onClick={() => setActiveTab('knowledge')}
+          style={{ fontSize: 13 }}
+        >
+          我的知识库
+        </button>
+        <button
+          className={activeTab === 'templates' ? 'btn-primary' : 'btn-ghost'}
+          onClick={() => { setActiveTab('templates'); fetchTemplates(); }}
+          style={{ fontSize: 13 }}
+        >
+          模板库
+        </button>
+      </div>
+
       {uploadError && (
         <div style={{
           padding: '10px 14px',
@@ -472,12 +537,15 @@ export default function KnowledgePage() {
         </div>
       )}
 
+      {activeTab === 'knowledge' && (
+      <>
       <div style={{
         display: 'flex',
-        gap: 12,
+        gap: 10,
         flexWrap: 'wrap',
+        alignItems: 'center',
       }}>
-        <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
+        <div style={{ flex: '1 1 240px', minWidth: 240, position: 'relative' }}>
           <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: 'var(--text-tertiary)' }} />
           <Input
             placeholder="搜索知识..."
@@ -486,7 +554,7 @@ export default function KnowledgePage() {
             style={{ paddingLeft: 40 }}
           />
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger style={{ width: 150 }}>
               <Filter style={{ width: 15, height: 15, marginRight: 6 }} />
@@ -635,6 +703,65 @@ export default function KnowledgePage() {
           </>
         )}
       </div>
+
+      </>
+      )}
+
+      {activeTab === 'templates' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>知识库模板</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                选择系统模板，一键复制到你的知识库后自由修改
+              </p>
+            </div>
+            <button className="btn-ghost" onClick={fetchTemplates} style={{ fontSize: 12.5 }}>刷新</button>
+          </div>
+
+          {templatesLoading ? (
+            <div className="empty-state">
+              <div className="empty-icon"><BookOpen size={20} strokeWidth={1.7} color="var(--text-tertiary)" /></div>
+              <div className="empty-title">加载中</div>
+              <div className="empty-desc">正在获取模板列表</div>
+            </div>
+          ) : templates.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon"><Inbox size={22} strokeWidth={1.7} color="var(--accent)" /></div>
+              <div className="empty-title">暂无模板</div>
+              <div className="empty-desc">系统尚未发布模板</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {templates.map((t) => (
+                <div key={t.id} className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <LayoutTemplate style={{ width: 18, height: 18, color: 'var(--accent)' }} />
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{t.name}</div>
+                  </div>
+                  {t.category && (
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t.category}</span>
+                  )}
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, minHeight: 36 }}>
+                    {t.description || '—'}
+                  </p>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                    {t.items?.length || 0} 条知识
+                  </div>
+                  <button
+                    className="btn-primary"
+                    disabled={usingTemplateId === t.id}
+                    onClick={() => useTemplate(t.id)}
+                    style={{ fontSize: 13 }}
+                  >
+                    {usingTemplateId === t.id ? '复制中…' : '使用模板'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <style>{`
         @keyframes spin {

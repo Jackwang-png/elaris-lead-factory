@@ -41,6 +41,14 @@ export class HandoffController {
     return this.handoffService.claim(id, req.tenantId, req.user?.id);
   }
 
+  @Get('conversations')
+  @ApiOperation({ summary: '按状态列出 handoff 会话：pending(待处理)/active(处理中)/resolved(已处理)' })
+  listByStatus(@Req() req, @Query('status') status?: string) {
+    const s: 'pending' | 'active' | 'resolved' =
+      status === 'active' || status === 'resolved' ? status : 'pending';
+    return this.handoffService.listByStatus(req.tenantId, s, req.user?.id);
+  }
+
   @Get('pending-count')
   @ApiOperation({ summary: '待处理会话数量' })
   async pendingCount(@Req() req) {

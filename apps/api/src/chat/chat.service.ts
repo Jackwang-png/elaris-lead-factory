@@ -63,6 +63,17 @@ export class ChatService {
       },
     });
 
+    // 未读计数闭环（服务端权威，绝不依赖前端 +1）：
+    // 仅当本会话已进入人工客服（needsHuman 且未解决）时，对该租户会话自增。
+    // 用 updateMany + 条件 where 保证：①租户隔离 ②会话必须存在且为 handoff 且未关闭
+    // ③每条真实消息仅 +1（重复/异常事件不会无限递增）；会话不存在/已关闭则自动不匹配。
+    if (conversation.needsHuman && !conversation.resolvedAt) {
+      await this.prisma.conversation.updateMany({
+        where: { id: conversation.id, tenantId, needsHuman: true, resolvedAt: null },
+        data: { unreadCount: { increment: 1 }, updatedAt: new Date() },
+      });
+    }
+
     // Process through AI pipeline
     const aiResult = await this.aiPipelineService.processMessage(
       tenantId,

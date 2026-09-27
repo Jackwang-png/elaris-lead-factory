@@ -136,6 +136,7 @@ export class HandoffService {
       data: {
         claimedByUserId: userId,
         claimedAt: new Date(),
+        unreadCount: 0,
       },
     });
 
@@ -223,6 +224,41 @@ export class HandoffService {
     });
   }
 
+  /**
+   * 按状态列出 handoff 会话（租户隔离）：
+   *  - pending：需要人工、未解决、未认领（待处理）
+   *  - active：需要人工、未解决、已认领（处理中）
+   *  - resolved：已解决（已处理）
+   */
+  async listByStatus(
+    tenantId: string,
+    status: 'pending' | 'active' | 'resolved',
+    userId?: string,
+  ) {
+    const where: any = { tenantId };
+    if (status === 'pending') {
+      where.needsHuman = true;
+      where.resolvedAt = null;
+      where.claimedByUserId = null;
+    } else if (status === 'active') {
+      where.needsHuman = true;
+      where.resolvedAt = null;
+      where.claimedByUserId = { not: null };
+    } else {
+      where.resolvedAt = { not: null };
+    }
+    return this.prisma.conversation.findMany({
+      where,
+      include: {
+        bot: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true, email: true } },
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        _count: { select: { messages: true } },
+      },
+      orderBy: status === 'resolved' ? { resolvedAt: 'desc' } : { handoffAt: 'desc' },
+    });
+  }
+
   /** 待处理数量 */
   async pendingCount(tenantId: string): Promise<number> {
     return this.prisma.conversation.count({
@@ -286,7 +322,7 @@ export class HandoffService {
           tenantId,
           ...(role !== 'merchant' ? { OR: ownershipOr } : {}),
         },
-        data: { needsHuman: false, resolvedAt: new Date(), updatedAt: new Date() },
+        data: { needsHuman: false, resolvedAt: new Date(), updatedAt: new Date(), unreadCount: 0 },
       });
       if (upd.count === 0) {
         throw new ForbiddenException('会话归属已变更，无法回复');

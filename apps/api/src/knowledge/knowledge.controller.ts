@@ -176,9 +176,9 @@ export class KnowledgeController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get knowledge by ID' })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @CurrentUser() user: User) {
     try {
-      const knowledge = await this.knowledgeService.findOne(id);
+      const knowledge = await this.knowledgeService.findOne(id, user.tenantId);
       if (!knowledge) {
         throw new HttpException('Knowledge not found', HttpStatus.NOT_FOUND);
       }
@@ -217,10 +217,13 @@ export class KnowledgeController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete knowledge' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: User) {
     try {
-      return await this.knowledgeService.remove(id);
+      return await this.knowledgeService.remove(id, user.tenantId);
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         error.message || 'Failed to delete knowledge',
         HttpStatus.BAD_REQUEST,

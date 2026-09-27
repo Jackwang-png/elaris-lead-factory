@@ -12,6 +12,7 @@
  */
 
 import AdminSidebar from '@/components/admin-sidebar';
+import AdminAgentFab from '@/components/admin-agent-fab';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -34,6 +35,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         {children}
       </main>
+
+      <AdminAgentFab />
 
       <style>{`
         /* 桌面布局 — 与 root-client 保持一致 */

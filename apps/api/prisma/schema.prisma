@@ -260,6 +260,9 @@ model Conversation {
   claimedByUserId String?
   claimedAt       DateTime?
   claimedByUser   User?     @relation("ConversationClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
+
+  // Phase 2: 未读消息计数（仅本租户 handoff 会话内有效）
+  unreadCount     Int      @default(0)
 }
 
 model Message {
@@ -1046,4 +1049,30 @@ model MessageDraft {
 
   @@index([tenantId, leadId, status])
   @@index([tenantId, approvalId])
+}
+
+// === Phase 2: 知识库系统模板（系统内置，admin 维护；租户复制后相互独立）===
+model KnowledgeTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String? // 适用场景/分类
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       KnowledgeTemplateItem[]
+}
+
+model KnowledgeTemplateItem {
+  id         String   @id @default(cuid())
+  templateId String
+  template   KnowledgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title      String
+  content    String
+  type       String   @default("general")
+  category   String?
+  channels   String[] @default([])
+  sortOrder  Int      @default(0)
+
+  @@index([templateId])
 }
