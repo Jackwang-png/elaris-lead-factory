@@ -383,6 +383,24 @@ test('sales-readiness: NURTURE is reachable and carries the site-form nurture ru
   assert.ok(rec.angle.length > 0 && rec.nextAction.length > 0);
 });
 
+test('negation prefix guard: unique add to cart still yields cart capability', () => {
+  const r = buyingFor('This product has a unique add to cart experience.');
+  const ids = r.signals.map((signal) => signal.id);
+  assert.ok(ids.includes('cart_capability'), 'unique add to cart must still yield cart capability');
+});
+
+test('negation prefix guard: nonprofit add to cart still yields cart capability', () => {
+  const r = buyingFor('Our nonprofit add to cart initiative helps donors.');
+  const ids = r.signals.map((signal) => signal.id);
+  assert.ok(ids.includes('cart_capability'), 'nonprofit add to cart must still yield cart capability');
+});
+
+test('negation prefix guard: uninterrupted checkout still yields checkout capability', () => {
+  const r = buyingFor('We offer uninterrupted checkout for all members.');
+  const ids = r.signals.map((signal) => signal.id);
+  assert.ok(ids.includes('checkout_capability'), 'uninterrupted checkout must still yield checkout capability');
+});
+
 /* -------- F. 硬门与单一来源（P0-1 / P1-3 / P1-4 回归） -------- */
 
 test('sales-readiness: shouldEngage=false is a hard gate, not a score penalty', () => {
