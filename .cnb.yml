@@ -24,7 +24,7 @@ version: '1.0'
             - corepack prepare pnpm@9 --activate
             - pnpm --version
             - pnpm install --frozen-lockfile
-            - pnpm prisma:generate
+            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" pnpm prisma:generate
             - pnpm --filter smartcs-api typecheck
             - pnpm test
             - pnpm build
@@ -48,7 +48,7 @@ version: '1.0'
             - corepack prepare pnpm@9 --activate
             - pnpm --version
             - pnpm install --frozen-lockfile
-            - pnpm prisma:generate
+            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" pnpm prisma:generate
             - pnpm --filter smartcs-api typecheck
             - pnpm test
             - pnpm build
@@ -72,7 +72,7 @@ version: '1.0'
             - corepack prepare pnpm@9 --activate
             - pnpm --version
             - pnpm install --frozen-lockfile
-            - pnpm prisma:generate
+            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" pnpm prisma:generate
             - pnpm --filter smartcs-api typecheck
             - pnpm test
             - pnpm build
