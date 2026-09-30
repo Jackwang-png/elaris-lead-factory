@@ -8,7 +8,7 @@
     "apps/widget"
   ],
   "scripts": {
-    "prisma:generate": "pnpm --filter smartcs-api prisma generate",
+    "prisma:generate": "pnpm --filter smartcs-api exec prisma generate --schema prisma/schema.prisma",
     "build": "pnpm --filter smartcs-api build",
     "lint": "pnpm --filter smartcs-api lint",
     "test": "pnpm --filter smartcs-api test"
