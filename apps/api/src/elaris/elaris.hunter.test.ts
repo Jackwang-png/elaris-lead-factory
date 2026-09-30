@@ -336,6 +336,53 @@ test('matching: negation context suppresses keyword hits, exempted keywords stay
   assert.ok(exempt.signals.some((signal) => signal.id === 'pricing_transparency'), 'no minimum order / no MOQ is exempt from negation suppression');
 });
 
+/* -------- E2. hardening regression: cart/view-cart misjudgment, hyphenated negation, NURTURE -------- */
+
+test('cart-capability: view-cart / data-to-cart are not misjudged as add-to-cart', () => {
+  const view = buyingFor('View cart | My account | Track your order');
+  const viewIds = view.signals.map((signal) => signal.id);
+  assert.ok(!viewIds.includes('cart_capability'), 'view cart must not yield cart capability');
+  assert.ok(!viewIds.includes('checkout_capability'), 'view cart must not yield checkout capability');
+
+  const data = buyingFor('data-to-cart placeholder with no add action');
+  assert.ok(!data.signals.map((signal) => signal.id).includes('cart_capability'), 'data-to-cart must not yield cart capability');
+
+  // positive control: a real add-to-cart / checkout still registers capability
+  const real = buyingFor('Add to cart now and proceed to checkout');
+  const realIds = real.signals.map((signal) => signal.id);
+  assert.ok(realIds.includes('cart_capability'), 'add to cart must yield cart capability');
+  assert.ok(realIds.includes('checkout_capability'), 'proceed to checkout must yield checkout capability');
+});
+
+test('matching: hyphenated negation (non-/un-) suppresses capability keywords', () => {
+  const nonCart = buyingFor('Our platform is non-add-to-cart by design (catalog only).');
+  assert.ok(!nonCart.signals.map((signal) => signal.id).includes('cart_capability'), 'non-add-to-cart must not yield cart capability');
+
+  const nonCheckout = buyingFor('This is a non-checkout inquiry page only.');
+  assert.ok(!nonCheckout.signals.map((signal) => signal.id).includes('checkout_capability'), 'non-checkout must not yield checkout capability');
+
+  // control: real hyphenated add-to-cart still matches via separator normalization
+  const real = buyingFor('btn add-to-cart available');
+  assert.ok(real.signals.map((signal) => signal.id).includes('cart_capability'), 'add-to-cart (hyphen) must still match');
+
+  // negation is recorded at the matching layer and must not count
+  const hits = findKeywordHits('non-add-to-cart', ['add to cart']);
+  assert.ok(hits.length === 1 && hits[0].negated === true, 'non-add-to-cart hit must be flagged negated');
+  assert.equal(matchesAnyKeyword([{ source: 'text', value: 'non-add-to-cart' }], ['add to cart']), false);
+});
+
+test('sales-readiness: NURTURE is reachable and carries the site-form nurture rule', () => {
+  const buying = buyingFor(MEDIUM_TEXT);
+  const pain = painFor('');
+  const readiness = computeSalesReadiness({ qualification: qualification('B_POTENTIAL'), buying, pain });
+  assert.equal(readiness.state, 'NURTURE', 'B_POTENTIAL + modest buying should land in NURTURE');
+  assert.ok(readiness.score >= 30 && readiness.score < 55, `NURTURE score must be 30..54, got ${readiness.score}`);
+  const rec = buildSalesRecommendationRules({ url: URL, qualification: qualification('B_POTENTIAL'), buying, pain, readiness });
+  assert.equal(rec.status, 'OK');
+  assert.equal(rec.channel, 'SITE_FORM', 'NURTURE must recommend the SITE_FORM channel');
+  assert.ok(rec.angle.length > 0 && rec.nextAction.length > 0);
+});
+
 /* -------- F. 硬门与单一来源（P0-1 / P1-3 / P1-4 回归） -------- */
 
 test('sales-readiness: shouldEngage=false is a hard gate, not a score penalty', () => {

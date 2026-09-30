@@ -136,7 +136,7 @@ export const HUNTER_MATCHING = {
   NEGATION_LOOKBACK_TOKENS: 3,
   /** 否定词（token 级精确匹配，规避 note / nobody 等误命中）。 */
   NEGATION_TOKENS: [
-    'no', 'not', 'never', 'without', 'none', 'cannot', 'nor',
+    'no', 'not', 'never', 'without', 'none', 'cannot', 'nor', 'non', 'un',
     "don't", "doesn't", "didn't", "isn't", "aren't", "won't", "can't", "hasn't", "haven't",
   ],
   /** 出现这些 token 时取消否定抑制（"not only ... but also ..." 是枚举而非否定）。 */
