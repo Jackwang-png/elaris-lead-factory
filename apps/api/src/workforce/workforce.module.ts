@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from '../prisma/prisma.module';
+import { HunterModule } from '../hunter/hunter.module';
 
 import { WorkforceTenantGuard } from './workforce-tenant.guard';
 import { WorkforceThrottlerGuard } from './workforce-throttler.guard';
@@ -45,6 +46,7 @@ import { ApprovalsController } from './controllers/approvals.controller';
 @Module({
   imports: [
     PrismaModule,
+    HunterModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'smartcs-secret-key',
       signOptions: { expiresIn: '7d' },
