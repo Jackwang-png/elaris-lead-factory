@@ -11,7 +11,7 @@
     "noEmitOnError": false,
     "declaration": false,
     "sourceMap": false,
-    "types": []
+    "types": ["node"]
   },
   "include": ["src/elaris/**/*.ts"]
 }
