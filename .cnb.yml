@@ -1,24 +1,24 @@
 version: '1.0'
 
+# CNB (cnb.cool) repo-file pipeline config.
+# Schema (validated empirically): top-level '$' = default branch group;
+# under it, event keys (push / merge_request / api_trigger) each hold a list of
+# pipelines; each pipeline has `stages`, where every stage is an OBJECT with
+# name / image / commands (NOT a `jobs:` map, and the command key is `commands`).
 '$':
   push:
     - stages:
-        - test
-        - build
-      jobs:
-        elaris_test:
-          stage: test
+        - name: test
           image: node:20
-          script:
+          commands:
             - node --version
             - npm install -g typescript@5
             - cd apps/api
             - tsc -p tsconfig.ci.json || true
             - node --test dist-ci/elaris/*.test.js
-        install_build:
-          stage: build
+        - name: build
           image: node:20
-          script:
+          commands:
             - node --version
             - corepack enable
             - corepack prepare pnpm@9 --activate
@@ -32,22 +32,17 @@ version: '1.0'
 
   merge_request:
     - stages:
-        - test
-        - build
-      jobs:
-        elaris_test:
-          stage: test
+        - name: test
           image: node:20
-          script:
+          commands:
             - node --version
             - npm install -g typescript@5
             - cd apps/api
             - tsc -p tsconfig.ci.json || true
             - node --test dist-ci/elaris/*.test.js
-        install_build:
-          stage: build
+        - name: build
           image: node:20
-          script:
+          commands:
             - node --version
             - corepack enable
             - corepack prepare pnpm@9 --activate
@@ -61,22 +56,17 @@ version: '1.0'
 
   api_trigger:
     - stages:
-        - test
-        - build
-      jobs:
-        elaris_test:
-          stage: test
+        - name: test
           image: node:20
-          script:
+          commands:
             - node --version
             - npm install -g typescript@5
             - cd apps/api
             - tsc -p tsconfig.ci.json || true
             - node --test dist-ci/elaris/*.test.js
-        install_build:
-          stage: build
+        - name: build
           image: node:20
-          script:
+          commands:
             - node --version
             - corepack enable
             - corepack prepare pnpm@9 --activate
