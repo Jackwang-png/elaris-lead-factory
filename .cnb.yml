@@ -5,17 +5,19 @@ version: '1.0'
 # under it, event keys (push / merge_request / api_trigger) each hold a list of
 # pipelines; each pipeline has `stages`, where every stage is an OBJECT with
 # name / image / commands (NOT a `jobs:` map, and the command key is `commands`).
+#
+# CI gate policy (honest, fail-closed):
+#   - NO `|| true` anywhere: a real typecheck / test / build error MUST turn CI red.
+#   - A single `build` stage does the full, dependency-installing verification:
+#       pnpm install -> prisma:generate -> typecheck -> pnpm test -> build -> dashboard build
+#   - The previous hand-rolled `test` stage (which ran `tsc` WITHOUT installing
+#     deps and therefore always failed with "Cannot find type definition file
+#     for 'node'") has been removed; its coverage is fully provided by this stage.
+#   - PRISMA_ENGINES_MIRROR points at npmmirror so the Prisma engine binary can
+#     be downloaded inside the CNB build network (same mirror used in local proof).
 '$':
   push:
     - stages:
-        - name: test
-          image: node:20
-          commands:
-            - node --version
-            - npm install -g typescript@5
-            - cd apps/api
-            - tsc -p tsconfig.ci.json || true
-            - node --test dist-ci/elaris/*.test.js
         - name: build
           image: node:20
           commands:
@@ -24,7 +26,7 @@ version: '1.0'
             - corepack prepare pnpm@9 --activate
             - pnpm --version
             - pnpm install --frozen-lockfile
-            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" pnpm prisma:generate
+            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma" pnpm prisma:generate
             - pnpm --filter smartcs-api typecheck
             - pnpm test
             - pnpm build
@@ -32,14 +34,6 @@ version: '1.0'
 
   merge_request:
     - stages:
-        - name: test
-          image: node:20
-          commands:
-            - node --version
-            - npm install -g typescript@5
-            - cd apps/api
-            - tsc -p tsconfig.ci.json || true
-            - node --test dist-ci/elaris/*.test.js
         - name: build
           image: node:20
           commands:
@@ -48,7 +42,7 @@ version: '1.0'
             - corepack prepare pnpm@9 --activate
             - pnpm --version
             - pnpm install --frozen-lockfile
-            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" pnpm prisma:generate
+            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma" pnpm prisma:generate
             - pnpm --filter smartcs-api typecheck
             - pnpm test
             - pnpm build
@@ -56,14 +50,6 @@ version: '1.0'
 
   api_trigger:
     - stages:
-        - name: test
-          image: node:20
-          commands:
-            - node --version
-            - npm install -g typescript@5
-            - cd apps/api
-            - tsc -p tsconfig.ci.json || true
-            - node --test dist-ci/elaris/*.test.js
         - name: build
           image: node:20
           commands:
@@ -72,7 +58,7 @@ version: '1.0'
             - corepack prepare pnpm@9 --activate
             - pnpm --version
             - pnpm install --frozen-lockfile
-            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" pnpm prisma:generate
+            - DATABASE_URL="postgresql://elaris_ci:elaris_ci@localhost:5432/elaris_ci" PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma" pnpm prisma:generate
             - pnpm --filter smartcs-api typecheck
             - pnpm test
             - pnpm build
