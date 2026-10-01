@@ -31,6 +31,7 @@ import { DouyinModule } from './douyin/douyin.module';
 import { XiaohongshuModule } from './xiaohongshu/xiaohongshu.module';
 import { WorkforceModule } from './workforce/workforce.module';
 import { LeadIntelligenceModule } from './lead-intelligence/lead-intelligence.module';
+import { HunterModule } from './hunter/hunter.module';
 import { QuotaModule } from './quota/quota.module';
 import { StaffModule } from './staff/staff.module';
 
@@ -68,6 +69,7 @@ import { StaffModule } from './staff/staff.module';
     XiaohongshuModule,
     WorkforceModule,
     LeadIntelligenceModule,
+    HunterModule,
     QuotaModule,
     StaffModule,
   ],

@@ -5,6 +5,7 @@ import { ComplianceService } from './compliance.service';
 import { HumanControlService } from './human-control.service';
 import { ApprovalService } from './approval.service';
 import { WorkforceContext } from '../workforce.types';
+import { HunterPipelineService } from '../../hunter/hunter-pipeline.service';
 
 export interface HunterQualifiedInput {
   leadId: string;
@@ -49,6 +50,11 @@ export class HunterService {
     private compliance: ComplianceService,
     private humanControl: HumanControlService,
     private approval: ApprovalService,
+    /**
+     * Hunter V1.4 pipeline — supplies the ONLY authoritative qualification.
+     * Caller-supplied `input.qualification` is never used as judgement.
+     */
+    private readonly hunterPipeline: HunterPipelineService,
   ) {}
 
   async qualified(tenantId: string, input: HunterQualifiedInput, ctx: WorkforceContext, explicit = false) {
@@ -92,6 +98,29 @@ export class HunterService {
       });
       throw new ForbiddenException(`Compliance gate: ${compliance.reason}`);
     }
+
+    /**
+     * ---- Authoritative qualification: computed internally, never from caller ----
+     * Rule: `input.qualification` must NOT influence the final MerchantQualification,
+     *       LeadIntelligence score, readiness, recommendation or Opportunity data.
+     *       It is retained only as `externalQualification` metadata for
+     *       audit / compatibility, explicitly marked low-confidence + non-authoritative.
+     */
+    const internal = await this.hunterPipeline.internalQualificationForLead(tenantId, lead.id);
+    const finalQualification = internal.qualification;
+    const qualificationSummary =
+      finalQualification.recommendedAction || `Hunter qualification: ${finalQualification.grade}`;
+
+    const externalQualification = input.qualification
+      ? {
+          ...input.qualification,
+          qualifiedBy: 'external',
+          source: 'external',
+          confidence: 'LOW',
+          authoritative: false,
+          ignoredForJudgement: true,
+        }
+      : null;
 
     const approval = {
       approvalRequired,
@@ -186,27 +215,28 @@ export class HunterService {
     const contextPayload = {
       type: 'hunter_handoff',
       icpScore: lead.icpScore,
-      qualification: input.qualification || null,
+      qualification: finalQualification,
+      externalQualification,
       research: input.research || null,
       conversationHistory: input.conversationHistory || null,
       recommendedStrategy: input.recommendedStrategy || null,
       company: lead.companyRef
         ? { id: lead.companyRef.id, name: lead.companyRef.name, domain: lead.companyRef.domain, industry: lead.companyRef.industry }
         : null,
-      scoringModel: input.qualification?.scoringModel || null,
-      scoreExplanation: input.qualification?.scoreExplanation || null,
+      scoringModel: 'elaris-v1.4',
+      scoreExplanation: finalQualification.reasons,
     };
     await this.prisma.message.create({
       data: {
         content:
-          input.qualification?.summary ||
-          `Hunter 判定 Qualified Lead（${input.qualification?.grade || lead.status}），交接至 Support 团队。`,
+          qualificationSummary ||
+          `Hunter 判定 Qualified Lead（${finalQualification.grade}），交接至 Support 团队。`,
         sender: 'bot',
         direction: 'inbound',
         role: 'system',
         conversationId: conversation.id,
         tenantId,
-        metadata: contextPayload,
+        metadata: contextPayload as any,
       },
     });
 
@@ -234,9 +264,11 @@ export class HunterService {
         customerId: customer.id,
         conversationId: conversation.id,
         icpScore: lead.icpScore,
-        grade: input.qualification?.grade || null,
-        score: input.qualification?.score || null,
-        scoringModel: input.qualification?.scoringModel || null,
+        grade: finalQualification.grade,
+        score: finalQualification.score,
+        scoringModel: 'elaris-v1.4',
+        qualificationSource: internal.source,
+        externalQualification,
         compliance: compliance.status,
         approval: { approvalRequired, autoApproved, riskLevel: decision.level },
       },
@@ -253,7 +285,12 @@ export class HunterService {
       customer,
       conversation,
       lead: updatedLead,
-      context: { traceId: ctx.traceId, scoringModel: input.qualification?.scoringModel || null },
+      context: {
+        traceId: ctx.traceId,
+        scoringModel: 'elaris-v1.4',
+        qualificationSource: internal.source,
+        externalQualificationIgnored: Boolean(externalQualification),
+      },
     };
   }
 }
