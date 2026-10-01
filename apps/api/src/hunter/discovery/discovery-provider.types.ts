@@ -13,6 +13,10 @@ export interface DiscoveryQuery {
   urls?: string[];
   /** Max candidates to return. */
   limit?: number;
+  /** Optional discovery filters (passed through to search providers). */
+  country?: string;
+  region?: string;
+  industry?: string;
 }
 
 export interface DiscoveryCandidate {

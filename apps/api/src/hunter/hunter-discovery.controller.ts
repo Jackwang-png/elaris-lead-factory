@@ -30,6 +30,9 @@ export class HunterDiscoveryController {
       query: dto.query,
       urls: dto.urls,
       limit: dto.limit,
+      country: dto.country,
+      region: dto.region,
+      industry: dto.industry,
     });
     return { tenantId: ctx.tenantId, traceId: ctx.traceId, count: items.length, items };
   }

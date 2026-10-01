@@ -197,9 +197,12 @@ export class HunterPipelineService {
       signalType: qualification.isEcommerce ? 'woocommerce_detected' : 'merchant_candidate',
       evidence: [
         `source=${candidate.source}`,
+        candidate.evidence ? `discovery=${candidate.evidence}` : '',
         `grade=${qualification.grade}`,
         ...qualification.observedSignals,
-      ].join('; '),
+      ]
+        .filter(Boolean)
+        .join('; '),
       sourceSystem: 'hunter',
       occurredAt,
       rawData: { detection: outcome.detection, blockedReason: outcome.blockedReason ?? null },
