@@ -2,6 +2,9 @@
  * You.com Search Provider — closed-loop tests (no network, no real API calls).
  *
  * All HTTP is mocked by injecting a fetchImpl; the global fetch is never touched.
+ *
+ * Response shape follows the official You.com Web Search API:
+ *   { results: { web: [ { url, title, description, snippets } ] } }
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,7 +34,8 @@ function fetchRejects() {
   };
 }
 
-const HITS = [
+// Official You.com Web Search `results.web` payload.
+const WEB = [
   {
     url: 'https://shop.example.com/',
     title: 'Gear Shop',
@@ -43,8 +47,8 @@ const HITS = [
   { url: 'ftp://x.com', title: 'ftp link' },
 ];
 
-test('valid response -> normalized candidates (url/domain/source/evidence)', async () => {
-  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ hits: HITS }));
+test('valid results.web -> normalized candidates (url/domain/source/evidence)', async () => {
+  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ results: { web: WEB } }));
   const out = await p.discover({ query: 'outdoor gear', limit: 10 });
 
   // 2 valid http(s) urls; 'not-a-url' and 'ftp://' are skipped.
@@ -60,8 +64,62 @@ test('valid response -> normalized candidates (url/domain/source/evidence)', asy
   assert.ok(out[0].observedAt);
 });
 
+test('evidence mapping: title/description/snippets combined', async () => {
+  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ results: { web: [WEB[0]] } }));
+  const out = await p.discover({ query: 'x' });
+  assert.equal(out.length, 1);
+  const ev = out[0].evidence ?? '';
+  assert.match(ev, /title: Gear Shop/);
+  assert.match(ev, /description: Outdoor gear\./);
+  assert.match(ev, /Buy now/);
+  assert.match(ev, /Free shipping/);
+});
+
+test('URL normalize: www strip and https scheme', async () => {
+  const p = new YouComSearchProvider(
+    fakeConfig(() => 'key'),
+    fetchReturns({
+      results: {
+        web: [
+          { url: 'http://www.example.org/about', title: 't', description: 'd' },
+          { url: 'https://shop.example.com', title: 't', description: 'd' },
+        ],
+      },
+    }),
+  );
+  const out = await p.discover({ query: 'x' });
+  assert.equal(out.length, 2);
+  assert.equal(out[0].url, 'http://www.example.org/about');
+  assert.equal(out[0].domain, 'example.org');
+  assert.equal(out[1].domain, 'shop.example.com');
+});
+
+test('empty results.web -> []', async () => {
+  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ results: { web: [] } }));
+  const out = await p.discover({ query: 'x' });
+  assert.deepEqual(out, []);
+});
+
+test('missing results key -> [] (fail-closed)', async () => {
+  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({}));
+  const out = await p.discover({ query: 'x' });
+  assert.deepEqual(out, []);
+});
+
+test('malformed results (results is not an object) -> [] (fail-closed)', async () => {
+  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ results: [] }));
+  const out = await p.discover({ query: 'x' });
+  assert.deepEqual(out, []);
+});
+
+test('malformed structure (web is not an array) -> [] (fail-closed)', async () => {
+  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ results: { web: 'nope' } }));
+  const out = await p.discover({ query: 'x' });
+  assert.deepEqual(out, []);
+});
+
 test('missing YDC_API_KEY -> [] (fail-closed)', async () => {
-  const p = new YouComSearchProvider(fakeConfig(() => undefined), fetchReturns({ hits: HITS }));
+  const p = new YouComSearchProvider(fakeConfig(() => undefined), fetchReturns({ results: { web: WEB } }));
   const out = await p.discover({ query: 'x' });
   assert.deepEqual(out, []);
 });
@@ -72,7 +130,7 @@ test('no query -> [] and search is never called', async () => {
     fakeConfig(() => 'key'),
     async () => {
       called = true;
-      return makeResponse(true, 200, { hits: [] });
+      return makeResponse(true, 200, { results: { web: [] } });
     },
   );
   const out = await p.discover({ urls: ['https://a.com'] }); // no query
@@ -89,7 +147,7 @@ test('timeout / network error -> [] (fail-closed)', async () => {
 test('non-2xx -> [] (fail-closed)', async () => {
   const p = new YouComSearchProvider(
     fakeConfig(() => 'key'),
-    fetchReturns({ hits: [] }, false, 500),
+    fetchReturns({ results: { web: [] } }, false, 500),
   );
   const out = await p.discover({ query: 'x' });
   assert.deepEqual(out, []);
@@ -108,23 +166,11 @@ test('malformed JSON -> [] (fail-closed)', async () => {
   assert.deepEqual(out, []);
 });
 
-test('empty hits -> []', async () => {
-  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ hits: [] }));
-  const out = await p.discover({ query: 'x' });
-  assert.deepEqual(out, []);
-});
-
-test('malformed structure (no hits array) -> [] (fail-closed)', async () => {
-  const p = new YouComSearchProvider(fakeConfig(() => 'key'), fetchReturns({ results: [] }));
-  const out = await p.discover({ query: 'x' });
-  assert.deepEqual(out, []);
-});
-
 test('limit maps to count and is clamped to [1, 50]', async () => {
   let sent: any = null;
   const capture = async (_url: string, init: any) => {
     sent = JSON.parse(init.body);
-    return makeResponse(true, 200, { hits: [] });
+    return makeResponse(true, 200, { results: { web: [] } });
   };
 
   const p1 = new YouComSearchProvider(fakeConfig(() => 'key'), capture);

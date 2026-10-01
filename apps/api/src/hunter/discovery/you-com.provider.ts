@@ -35,7 +35,7 @@ export type YouComFetchImpl = (
   init: { method: string; headers: Record<string, string>; body: string; signal: AbortSignal },
 ) => Promise<Response>;
 
-interface YouComHit {
+interface YouComWebHit {
   url?: unknown;
   title?: unknown;
   description?: unknown;
@@ -78,7 +78,7 @@ export class YouComSearchProvider implements DiscoveryProvider {
       return []; // malformed JSON => fail-closed
     }
 
-    return normalizeHits(payload, observedAt, this.name);
+    return normalizeResults(payload, observedAt, this.name);
   }
 
   private callApi(q: string, count: number, apiKey: string): Promise<Response> {
@@ -104,13 +104,16 @@ function normalizeCount(limit?: number): number {
   return n;
 }
 
-function normalizeHits(payload: unknown, observedAt: string, source: string): DiscoveryCandidate[] {
-  const hits = (payload as { hits?: unknown })?.hits;
-  if (!Array.isArray(hits)) return []; // malformed structure => fail-closed
+function normalizeResults(payload: unknown, observedAt: string, source: string): DiscoveryCandidate[] {
+  // Official You.com Web Search response shape: { results: { web: [...] } }.
+  // Missing `results` or a non-array `results.web` => fail-closed to [].
+  const results = (payload as { results?: unknown })?.results;
+  const web = (results as { web?: unknown })?.web;
+  if (!Array.isArray(web)) return []; // malformed structure => fail-closed
 
   const out: DiscoveryCandidate[] = [];
-  for (const hit of hits) {
-    const raw = (hit as YouComHit)?.url;
+  for (const hit of web) {
+    const raw = (hit as YouComWebHit)?.url;
     if (typeof raw !== 'string') continue;
 
     let url: string;
@@ -126,7 +129,7 @@ function normalizeHits(payload: unknown, observedAt: string, source: string): Di
       domain: domainOf(url),
       source,
       observedAt,
-      evidence: buildEvidence(hit as YouComHit),
+      evidence: buildEvidence(hit as YouComWebHit),
     });
   }
   return out;
@@ -136,7 +139,7 @@ function normalizeHits(payload: unknown, observedAt: string, source: string): Di
  * Evidence uses ONLY public result fields (title / description / snippets).
  * It is a short, human-readable string — never raw HTML.
  */
-function buildEvidence(hit: YouComHit): string {
+function buildEvidence(hit: YouComWebHit): string {
   const parts: string[] = [];
   if (typeof hit.title === 'string' && hit.title.trim()) {
     parts.push(`title: ${hit.title.trim()}`);
