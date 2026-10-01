@@ -26,8 +26,21 @@ export class DiscoveryService {
       collected.push(...found);
     }
 
-    const vetted: VettedCandidate[] = [];
+    // Domain dedupe within a single discovery call: keep the first candidate per
+    // domain (operator manual seeds are earliest in the provider list, so they win
+    // ties). Empty domains are never deduped. URL-level idempotency is still
+    // enforced downstream in persistence — this only trims redundant candidates.
+    const seenDomains = new Set<string>();
+    const deduped: DiscoveryCandidate[] = [];
     for (const candidate of collected) {
+      const domain = candidate.domain || '';
+      if (domain && seenDomains.has(domain)) continue;
+      if (domain) seenDomains.add(domain);
+      deduped.push(candidate);
+    }
+
+    const vetted: VettedCandidate[] = [];
+    for (const candidate of deduped) {
       const verdict = await this.safety.evaluate(candidate.url);
       vetted.push({
         ...candidate,

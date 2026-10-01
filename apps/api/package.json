@@ -12,7 +12,7 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "seed": "ts-node prisma/seed.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.ci.json && node --test dist-ci/elaris/*.test.js"
+    "test": "tsc -p tsconfig.ci.json && node --test dist-ci/elaris/*.test.js dist-ci/hunter/__tests__/*.test.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
