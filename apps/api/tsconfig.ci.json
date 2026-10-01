@@ -5,7 +5,9 @@
     "moduleResolution": "node",
     "outDir": "dist-ci",
     "rootDir": "src",
-    "strict": true,
+    "strict": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmitOnError": false,
@@ -13,5 +15,5 @@
     "sourceMap": false,
     "types": ["node"]
   },
-  "include": ["src/elaris/**/*.ts"]
+  "include": ["src/elaris/**/*.ts", "src/hunter/**/*.ts"]
 }
